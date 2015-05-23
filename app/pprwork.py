@@ -5,22 +5,12 @@ from flask import Flask, request, session, g, redirect, url_for, \
 from contextlib import closing
 import forms
 
-#Configuration
-database = "C:/Code/pprwork/schema.db"
-#Impotant: Change debug to false before production version
-debug = True
-secret_key = "development key"
-username = "admin"
-password = "default"
-
 #Create the application
 app = Flask(__name__)
 app.config.update(dict(
 	DATABASE=os.path.join(app.root_path, 'pprwork.db'),
 	DEBUG=True,
 	SECRET_KEY="development key",
-	USERNAME='admin',
-	PASSWORD='default'
 ))
 app.config.from_envvar('FLASKR_SETTINGS', silent=True)
 
@@ -62,13 +52,11 @@ def add_entry():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
 	error = None
-	form = forms.RegistrationForm(request.form)
+	form = forms.LoginForm(request.form)
 	if request.method == 'POST' and form.validate():
-		cur = g.db.execute('select * from users where username = ?', form.username.data)
-		entries = [dict(username=row[0]) for row in cur.fetchall()]
-		if form.username.data not in entries[username].values():
+		if g.db.execute('select exists(select 1 from users where username = ? limit 1)', (form.username.data,)) is 0:
 			error = 'Invalid username'
-		elif g.db.execute('select password from users where username = ?', form.username.data).fetchone() is not None:
+		elif g.db.execute('select password from users where username = ?', (form.username.data,)).fetchone()[0] != form.password.data:
 			error = 'Invalid password'
 		else:
 			session['logged_in'] = True
@@ -85,11 +73,11 @@ def logout():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
 	error = None
-	formb = forms.RegistrationForm(request.form)
-	if request.method == 'POST' and formb.validate():
-		cur = g.db.execute('select * from users where username = ?', formb.username.data)
-		entries = [dict(username=row[0]) for row in cur.fetchall()]
-		if entries[0] is not None:
+	form = forms.RegistrationForm(request.form)
+	if request.method == 'POST' and form.validate():
+		print(form.username.data)
+		#entries = [dict(username=row[0]) for row in cur.fetchall()]
+		if g.db.execute('select exists(select 1 from users where username = ? limit 1)', (form.username.data,)) is 1:
 			error = "Username already taken"
 		else:
 			g.db.execute('insert into users (username, firstname, lastname, password, email) values (?, ?, ?, ?, ?)',
@@ -98,6 +86,10 @@ def register():
 			flash('Your account has been registered')
 			return redirect(url_for('login'))
 	return render_template('register.html', form=form, error=error)
+
+@app.route('/friends', methods=['GET', 'POST'])
+def friends():
+	pass
 
 if __name__ == "__main__":
 	app.run()
