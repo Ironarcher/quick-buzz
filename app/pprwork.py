@@ -3,6 +3,7 @@ import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, \
 	abort, render_template, flash
 from contextlib import closing
+import forms
 
 #Configuration
 database = "C:/Code/pprwork/schema.db"
@@ -61,16 +62,19 @@ def add_entry():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
 	error = None
-	if request.method == 'POST':
-		if request.form['username'] != app.config['USERNAME']:
+	form = forms.RegistrationForm(request.form)
+	if request.method == 'POST' and form.validate():
+		cur = g.db.execute('select * from users where username = ?', form.username.data)
+		entries = [dict(username=row[0]) for row in cur.fetchall()]
+		if form.username.data not in entries[username].values():
 			error = 'Invalid username'
-		elif request.form['password'] != app.config['PASSWORD']:
+		elif g.db.execute('select password from users where username = ?', form.username.data).fetchone() is not None:
 			error = 'Invalid password'
 		else:
 			session['logged_in'] = True
 			flash('You were logged in')
 			return redirect(url_for('show_entries'))
-	return render_template('login.html', error=error)
+	return render_template('login.html', form=form, error=error)
 
 @app.route('/logout')
 def logout():
@@ -78,7 +82,22 @@ def logout():
 	flash('You were logged out')
 	return redirect(url_for('show_entries'))
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+	error = None
+	formb = forms.RegistrationForm(request.form)
+	if request.method == 'POST' and formb.validate():
+		cur = g.db.execute('select * from users where username = ?', formb.username.data)
+		entries = [dict(username=row[0]) for row in cur.fetchall()]
+		if entries[0] is not None:
+			error = "Username already taken"
+		else:
+			g.db.execute('insert into users (username, firstname, lastname, password, email) values (?, ?, ?, ?, ?)',
+				[form.username.data, form.firstname.data, form.lastname.data, form.password.data, form.email.data])
+			g.db.commit()
+			flash('Your account has been registered')
+			return redirect(url_for('login'))
+	return render_template('register.html', form=form, error=error)
+
 if __name__ == "__main__":
 	app.run()
-
-
