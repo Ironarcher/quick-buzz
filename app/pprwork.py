@@ -95,6 +95,8 @@ def register():
 	if request.method == 'POST' and form.validate():
 		if g.db.execute('select exists(select 1 from users where username = ? limit 1)', (form.username.data,)) is 1:
 			error = "Username already taken"
+		elif form.username.data == "searchbox":
+			error = "Invalid username"
 		else:
 			g.db.execute('insert into users (username, firstname, lastname, password, email) values (?, ?, ?, ?, ?)',
 				[form.username.data, form.firstname.data, form.lastname.data, form.password.data, form.email.data])
@@ -103,27 +105,34 @@ def register():
 			return redirect(url_for('login'))
 	return render_template('register.html', form=form, error=error)
 
-@app.route('/friends', methods=['GET', 'POST'])
-def friends():
-	error = None
-	result = None
-	form1 = FindFriendForm(prefix="form1")
-	form2 = InviteFriendForm(prefix="form2")
-	if request.values.get("addfriend") == 'Search' and request.method == 'POST':
-		form = forms.FindFriendForm(request.form)
-		if form.validate():
-			q = g.db.execute('select exists(select 1 from users where username = ? limit 1)', (form.username.data,))
-			if q == 1:
-				flash('user found')
-			elif q == 0:
-				flash('user not found')
-			else:
-				flash('critical error')
-	#elif request.form['addfriend'] == 'Invite' and request.method == 'POST':
-	#	flash('Invitation sent!')
-	query = g.db.execute('select id from users where username = ?', (session['username'],)).fetchone()[0]
-	result = getFriends(query)
-	return render_template('friends.html', form1=form1, form2=form2 error=error, friendslist=result)
+@app.route('/search', methods=['GET', 'POST'])
+def search():
+	userentries = None
+	f = request.form
+	for key in f.keys():
+		for value in f.getlist(key):
+			print key,":",value
+	if request.form['searchbox'] != None:
+		print('going through')
+		query1 = g.db.execute("select username, firstname, lastname from users where username like ?", ('%'+request.form['searchbox']+'%',))
+		userentries = [dict(username = row[0], firstname = row[1], lastname = row[2]) for row in query1.fetchall()]
+	elif request.form['action'] != None:
+		print('hello')
+		return redirect(url_for('show_entries.html'))
+	print('end')
+	return render_template('search.html', userentries=userentries)
+
+@app.route('/invite', methods=['GET', 'POST'])
+def invite():
+	form = forms.InviteFriendForm(request.form)
+	if request.method == 'POST' and form.validate():
+		#Send the email via flask-mail
+		flash('Invitation sent!')
+	return render_template('invitefriends.html', form=form)
+
+@app.route('/questions/add', methods=['GET', 'POST'])
+def addquestions():
+	pass
 
 if __name__ == "__main__":
 	app.run()

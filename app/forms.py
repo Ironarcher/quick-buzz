@@ -1,4 +1,5 @@
 from wtforms import Form, TextField, PasswordField, validators
+from wtforms.widgets import TextArea
 
 class RegistrationForm(Form):
 	username = TextField('Username', [
@@ -27,6 +28,10 @@ class FindFriendForm(Form):
 
 class InviteFriendForm(Form):
 	email = TextField('E-mail Address', [validators.Required(),
-		validators.Email()])
+		validators.Email()])	
+	message = TextField('Message', widget=TextArea())
+
+class SearchForm(Form):
+	searchbox = TextField('Search', validators.Required())
 
 

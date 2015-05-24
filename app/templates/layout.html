@@ -1,9 +1,16 @@
 <!doctype html>
 <title>Pprwork</title>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
-<div class=page>	
+<div class=page>
 	<h1>Test website</h1>
 	<div class=metanav>
+		<div id=searcher>		
+		<form action="{{ url_for('search') }}" method=post>
+			<input type="hidden" value="searchbox">
+			<dt><input type=text size=20 name=searchbox>
+			<input type=submit value=Search>
+		</form>
+		</div>
 	{% if not session.logged_in %}
 		<a href="{{ url_for('login') }}">log in</a>
 	{% else %}
