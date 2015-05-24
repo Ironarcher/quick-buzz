@@ -22,4 +22,11 @@ class LoginForm(Form):
 	username = TextField('Username', [validators.Required()])
 	password = PasswordField('New Password', [validators.Required()])
 
+class FindFriendForm(Form):
+	username = TextField("Friend's Username", [validators.Required()])
+
+class InviteFriendForm(Form):
+	email = TextField('E-mail Address', [validators.Required(),
+		validators.Email()])
+
 

@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block body %}
+	{% from "_formhelpers.html" import render_field %}
+	<h2>Friends</h2>
+	{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+	{% if session.logged_in %}
+		<div id="newfriends">
+			<p>Add new friends already signed up by searching:</p>
+			{% from "_formhelpers.html" import render_field %}
+  			<form action="{{ url_for('friends') }}" method=post>
+    			{{ render_field(form.username) }}
+  				<input type=submit name=addfriend value=Search>
+  			</form>
+		</div>
+
+		<div id="invitefriends">
+			<p>Invite new friend. Enter an e-mail address to invite:</p>
+  			<form action="{{ url_for('friends') }}" method=post>
+    			{{ render_field(form.email) }}
+  				<input type=submit name=addfriend value=Invite>
+  			</form>
+		</div>
+
+		<div id="existingfriends">
+			<p>Your Friends List</p>
+			<ul class=friends>
+			{% for friend in friendslist %}
+				<li><p>{{ friend.username }}</p>{{ entry.text|safe }}
+			{% else %}
+				<li><em>Search for people you already know or invite your friends</em>
+			{% endfor %}
+		</div>
+	{% else %}
+		<p>Please log-in to view this page.</p>
+		<a href="{{ url_for('login') }}">Click here to log-in</a>
+	{% endif %}
+{% endblock %}

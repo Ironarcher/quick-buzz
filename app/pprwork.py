@@ -33,6 +33,22 @@ def teardown_request(exception):
 	if db is not None:
 		db.close()
 
+def createFriendship(friendid):
+	userid = g.db.execute('select id from users where username = ?', (session['username'],)).fetchone()[0]
+	g.db.execute('insert into friends (frienderId, friendedId) values (?, ?)', [userid, friendid])
+	g.db.commit()
+
+def getFriends(userid):
+	stack = []
+	query1 = g.db.execute('select friendedId from friends where frienderId = ?', (userid,))
+	query2 = g.db.execute('select frienderId from friends where friendedId = ?', (userid,))
+
+	for row in query1:
+		stack.append(row[0])
+	for row in query2:
+		stack.append(row[0])
+	return stack
+
 @app.route('/')
 def show_entries():
 	cur = g.db.execute('select title, text from entries order by id desc')
@@ -60,6 +76,7 @@ def login():
 			error = 'Invalid password'
 		else:
 			session['logged_in'] = True
+			session['username'] = form.username.data
 			flash('You were logged in')
 			return redirect(url_for('show_entries'))
 	return render_template('login.html', form=form, error=error)
@@ -67,6 +84,7 @@ def login():
 @app.route('/logout')
 def logout():
 	session.pop('logged_in', None)
+	session.pop('username', None)
 	flash('You were logged out')
 	return redirect(url_for('show_entries'))
 
@@ -75,8 +93,6 @@ def register():
 	error = None
 	form = forms.RegistrationForm(request.form)
 	if request.method == 'POST' and form.validate():
-		print(form.username.data)
-		#entries = [dict(username=row[0]) for row in cur.fetchall()]
 		if g.db.execute('select exists(select 1 from users where username = ? limit 1)', (form.username.data,)) is 1:
 			error = "Username already taken"
 		else:
@@ -89,7 +105,25 @@ def register():
 
 @app.route('/friends', methods=['GET', 'POST'])
 def friends():
-	pass
+	error = None
+	result = None
+	form1 = FindFriendForm(prefix="form1")
+	form2 = InviteFriendForm(prefix="form2")
+	if request.values.get("addfriend") == 'Search' and request.method == 'POST':
+		form = forms.FindFriendForm(request.form)
+		if form.validate():
+			q = g.db.execute('select exists(select 1 from users where username = ? limit 1)', (form.username.data,))
+			if q == 1:
+				flash('user found')
+			elif q == 0:
+				flash('user not found')
+			else:
+				flash('critical error')
+	#elif request.form['addfriend'] == 'Invite' and request.method == 'POST':
+	#	flash('Invitation sent!')
+	query = g.db.execute('select id from users where username = ?', (session['username'],)).fetchone()[0]
+	result = getFriends(query)
+	return render_template('friends.html', form1=form1, form2=form2 error=error, friendslist=result)
 
 if __name__ == "__main__":
 	app.run()
