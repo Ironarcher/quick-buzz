@@ -4,9 +4,12 @@ from flask import Flask, request, session, g, redirect, url_for, \
 	abort, render_template, flash
 from contextlib import closing
 import forms
+import email
+from flaskext.mail import Mail
 
 #Create the application
 app = Flask(__name__)
+mail = Mail(app)
 app.config.update(dict(
 	DATABASE=os.path.join(app.root_path, 'pprwork.db'),
 	DEBUG=True,
@@ -34,7 +37,7 @@ def teardown_request(exception):
 		db.close()
 
 def createFriendship(friendid):
-	userid = g.db.execute('select id from users where username = ?', (session['username'],)).fetchone()[0]
+	userid = getCurrentUserId()
 	g.db.execute('insert into friends (frienderId, friendedId) values (?, ?)', [userid, friendid])
 	g.db.commit()
 
@@ -48,6 +51,12 @@ def getFriends(userid):
 	for row in query2:
 		stack.append(row[0])
 	return stack
+
+def getUserId(username):
+	return g.db.execute('select id from users where username = ?', (username,)).fetchone()[0]
+
+def getCurrentUserId():
+	return getUserId(session['username'])
 
 @app.route('/')
 def show_entries():
@@ -130,9 +139,19 @@ def invite():
 		flash('Invitation sent!')
 	return render_template('invitefriends.html', form=form)
 
-@app.route('/questions/add', methods=['GET', 'POST'])
-def addquestions():
-	pass
+@app.route('/sets/add', methods=['GET', 'POST'])
+def addsets():
+	form = forms.SetForm(request.form)
+
+@app.route('/questions/add/<int:set_id>', methods=['GET', 'POST'])
+def addquestions(set_id):
+	query = g.db.execute('select id, name from sets where creatorId = ?', (getCurrentUserId,))
+	queryentries = [dict(id = row[0], name = row[1]) for row in query1.fetchall()]
+	form = forms.QuestionForm(request.form)
+	form.setbox.choices = [(q.id, q.name) for q in queryentries]
+	if request.method == 'POST' and form.validate():
+		
+	return render_template('addquestion.html', form=form)
 
 if __name__ == "__main__":
 	app.run()

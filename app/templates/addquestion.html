@@ -1,0 +1,16 @@
+{% extends 'layout.html' %}
+{% block body %}
+	<h2>Create a new question:</h2>
+	{% if session.logged_in %}
+	<div>
+		<p>Select a set to add this question to:</p>
+		<form class="sideentry" action="{{ url_for('addquestions') }}"
+	</div>
+	<div>
+
+	</div>
+	{% else %}
+		<p>Please log-in to view this page.</p>
+		<a href="{{ url_for('login') }}">Click here to log-in</a>
+	{% endif %}
+{% endblock %}

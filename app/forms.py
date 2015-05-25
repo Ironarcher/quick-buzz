@@ -1,4 +1,4 @@
-from wtforms import Form, TextField, PasswordField, validators
+from wtforms import Form, TextField, PasswordField, SelectField, validators
 from wtforms.widgets import TextArea
 
 class RegistrationForm(Form):
@@ -33,5 +33,9 @@ class InviteFriendForm(Form):
 
 class SearchForm(Form):
 	searchbox = TextField('Search', validators.Required())
+
+class QuestionForm(Form):
+	setbox = SelectField('Set Used', coerce=unicode)
+
 
 
