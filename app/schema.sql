@@ -36,6 +36,7 @@ create table questions (
 	question text not null,
 	answer text not null,
 	rating integer default 0,
+	timeallowed integer default 15,
 	datecreated integer not null,
 	ownerset text references sets(id)
 );
@@ -43,6 +44,8 @@ create table questions (
 create table sets (
 	id integer primary key autoincrement,
 	creatorId integer references user(id),
+	isPublic boolean,
+	categorytype text,
 	name text not null
 );
 

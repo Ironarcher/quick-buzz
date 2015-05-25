@@ -1,15 +1,11 @@
 import os
 import sqlite3
-from flask import Flask, request, session, g, redirect, url_for, \
-	abort, render_template, flash
+from flask import Flask, request, session, g, redirect, url_for, render_template, flash, abort
 from contextlib import closing
 import forms
-import email
-from flaskext.mail import Mail
 
 #Create the application
 app = Flask(__name__)
-mail = Mail(app)
 app.config.update(dict(
 	DATABASE=os.path.join(app.root_path, 'pprwork.db'),
 	DEBUG=True,
@@ -102,7 +98,8 @@ def register():
 	error = None
 	form = forms.RegistrationForm(request.form)
 	if request.method == 'POST' and form.validate():
-		if g.db.execute('select exists(select 1 from users where username = ? limit 1)', (form.username.data,)) is 1:
+		cur = g.db.execute('select * from users where username = ?', (form.username.data,)).fetchone()
+		if cur is not None:
 			error = "Username already taken"
 		elif form.username.data == "searchbox":
 			error = "Invalid username"
@@ -127,7 +124,7 @@ def search():
 		userentries = [dict(username = row[0], firstname = row[1], lastname = row[2]) for row in query1.fetchall()]
 	elif request.form['action'] != None:
 		print('hello')
-		return redirect(url_for('show_entries.html'))
+		#return redirect(url_for('show_entries.html'))
 	print('end')
 	return render_template('search.html', userentries=userentries)
 
@@ -141,16 +138,37 @@ def invite():
 
 @app.route('/sets/add', methods=['GET', 'POST'])
 def addsets():
+	error = None
 	form = forms.SetForm(request.form)
+	if request.method == 'POST' and form.validate():
+		cur = g.db.execute('select * from sets where name = ?', (form.name.data,)).fetchone()
+		if cur is None:
+			g.db.execute('insert into sets (creatorId, isPublic, categorytype, name) values (?, ?, ?, ?)',
+				[getCurrentUserId(), form.public.data, form.category.data, form.name.data])
+			g.db.commit()
+			flash('Your new set has been created')
+			cur = g.db.execute('select id from sets where name = ?', (form.name.data,)).fetchone[0]
+			redirect('url_for(addquestions)' + '/' + cur)
+		else:
+			error = "This set's name is already being used. Choose a different name."
+	return render_template('addset.html', form=form, error=error)
 
 @app.route('/questions/add/<int:set_id>', methods=['GET', 'POST'])
 def addquestions(set_id):
 	query = g.db.execute('select id, name from sets where creatorId = ?', (getCurrentUserId,))
 	queryentries = [dict(id = row[0], name = row[1]) for row in query1.fetchall()]
-	form = forms.QuestionForm(request.form)
+	default = None
+	for entries in queryentries:
+		if set_id == entries.id:
+			default = set_id
+			continue
+	if default is not None:
+		form = forms.QuestionForm(request.form, setbox=default)
+	else:
+		form = forms.QuestionForm(request.form)
 	form.setbox.choices = [(q.id, q.name) for q in queryentries]
 	if request.method == 'POST' and form.validate():
-		
+		pass
 	return render_template('addquestion.html', form=form)
 
 if __name__ == "__main__":

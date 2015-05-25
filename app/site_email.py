@@ -1,4 +1,4 @@
-from flaskext.mail import Message
+from flask_mail import Message
 import config
 
 def send_email(subject, sender, recipients, text_body, html_body):

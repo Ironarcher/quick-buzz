@@ -1,4 +1,4 @@
-from wtforms import Form, TextField, PasswordField, SelectField, validators
+from wtforms import Form, TextField, PasswordField, SelectField, BooleanField, validators
 from wtforms.widgets import TextArea
 
 class RegistrationForm(Form):
@@ -35,7 +35,10 @@ class SearchForm(Form):
 	searchbox = TextField('Search', validators.Required())
 
 class QuestionForm(Form):
-	setbox = SelectField('Set Used', coerce=unicode)
+	setbox = SelectField('Set Used', coerce=int)
 
-
-
+class SetForm(Form):
+	name = TextField('Name', [validators.Required(),
+		validators.Length(min=6, max=50)])
+	public = BooleanField('Public?')
+	category = SelectField('Category', choices=[('history', 'History'), ('science', 'Science')])
