@@ -1,4 +1,4 @@
-from wtforms import Form, TextField, PasswordField, SelectField, BooleanField, validators
+from wtforms import Form, TextField, PasswordField, SelectField, IntegerField, BooleanField, validators
 from wtforms.widgets import TextArea
 
 class RegistrationForm(Form):
@@ -36,6 +36,11 @@ class SearchForm(Form):
 
 class QuestionForm(Form):
 	setbox = SelectField('Set Used', coerce=int)
+	question = TextField('Question', widget=TextArea())
+	answer = TextField('Answer')
+	time = IntegerField('Answering time',
+		[validators.NumberRange(min=5, max=60, message='The answering time must be between %(min)d and %(max)d seconds')],
+		default=15)
 
 class SetForm(Form):
 	name = TextField('Name', [validators.Required(),

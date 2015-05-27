@@ -50,4 +50,3 @@ create table sets (
 );
 
 insert into users (username, password, email) values ("admin", "code_39A$NPQ", "arpad.kovesdy@gmail.com");
-insert into sets (creatorId, name) values ("admin", "default")

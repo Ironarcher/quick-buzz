@@ -1,16 +1,36 @@
 {% extends 'layout.html' %}
 {% block body %}
 	<h2>Create a new question:</h2>
-	{% if session.logged_in %}
-	<div>
-		<p>Select a set to add this question to:</p>
-		<form class="sideentry" action="{{ url_for('addquestions') }}"
-	</div>
-	<div>
-
-	</div>
-	{% else %}
-		<p>Please log-in to view this page.</p>
-		<a href="{{ url_for('login') }}">Click here to log-in</a>
+	{% if error %}
+		<p class=error><strong>Error:</strong> {{ error }}
+	{% elif error != "Set not found" or error != "Permission not granted" %}
+		{% if session.logged_in %}
+			<div>
+				{% from "_formhelpers.html" import render_field %}
+				<p>Select a set to add this question to:</p>
+				{% if defaulted %}
+					<form class="sideentry" action="{{ url_for('addquestions', set_id=currentset) }}" method="post">
+						{{ render_field(form.setbox) }}
+						<input type='submit' name='submit' value='Create new set'>
+						{{ form.question(cols=20, rows=2) }}
+						{{ render_field(form.answer) }}
+						{{ render_field(form.time) }}
+						<input type='submit' name='submit' value='Create new question'>
+					</form>
+				{% else %}
+					<form class="sideentry" action="{{ url_for('addquestions_no_set') }}" method="post">
+						{{ render_field(form.setbox) }}
+						<input type='submit' name='submit' value='Create new set'>
+						{{ form.question(cols=20, rows=2) }}
+						{{ render_field(form.answer) }}
+						{{ render_field(form.time) }}
+						<input type='submit' name='submit' value='Create new question'>
+					</form>
+				{% endif %}
+			</div>
+		{% else %}
+			<p>Please log-in to view this page.</p>
+			<a href="{{ url_for('login') }}">Click here to log-in</a>
+		{% endif %}
 	{% endif %}
 {% endblock %}

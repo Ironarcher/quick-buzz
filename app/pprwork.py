@@ -1,4 +1,5 @@
 import os
+import time
 import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, render_template, flash, abort
 from contextlib import closing
@@ -32,6 +33,12 @@ def teardown_request(exception):
 	if db is not None:
 		db.close()
 
+def query_db(query, args=(), one=False):
+    cur = g.db.execute(query, args)
+    rv = cur.fetchall()
+    cur.close()
+    return (rv[0] if rv else None) if one else rv
+
 def createFriendship(friendid):
 	userid = getCurrentUserId()
 	g.db.execute('insert into friends (frienderId, friendedId) values (?, ?)', [userid, friendid])
@@ -39,17 +46,21 @@ def createFriendship(friendid):
 
 def getFriends(userid):
 	stack = []
-	query1 = g.db.execute('select friendedId from friends where frienderId = ?', (userid,))
-	query2 = g.db.execute('select frienderId from friends where friendedId = ?', (userid,))
+	query1 = query_db('select friendedId from friends where frienderId = ?', userid)
+	query2 = query_db('select frienderId from friends where friendedId = ?', userid)
 
-	for row in query1:
-		stack.append(row[0])
-	for row in query2:
-		stack.append(row[0])
+	if query1 is not None:
+		for row in query1:
+			stack.append(row[0])
+
+	if query2 is not None:
+		for row in query2:
+			stack.append(row[0])
+
 	return stack
 
 def getUserId(username):
-	return g.db.execute('select id from users where username = ?', (username,)).fetchone()[0]
+	return query_db('select id from users where username = ?', [username], one=True)[0]
 
 def getCurrentUserId():
 	return getUserId(session['username'])
@@ -64,7 +75,7 @@ def show_entries():
 def add_entry():
 	if not session.get('logged_in'):
 		abort(401)
-	g.db.execute('insert into entries (title, text) values (?, ?)',
+	g.db.execute('if insert into entries (title, text) values (?, ?)',
 		[request.form['title'], request.form['text']])
 	g.db.commit()
 	flash('New entry was successfully posted')
@@ -74,10 +85,12 @@ def add_entry():
 def login():
 	error = None
 	form = forms.LoginForm(request.form)
+	print(query_db('select password from users where username = ?', [form.username.data], one=True))
+	print(form.password.data)
 	if request.method == 'POST' and form.validate():
-		if g.db.execute('select exists(select 1 from users where username = ? limit 1)', (form.username.data,)) is 0:
+		if query_db('select * from users where username = ?', [form.username.data], one=True) is None:
 			error = 'Invalid username'
-		elif g.db.execute('select password from users where username = ?', (form.username.data,)).fetchone()[0] != form.password.data:
+		elif query_db('select password from users where username = ?', [form.username.data], one=True)[0] != form.password.data:
 			error = 'Invalid password'
 		else:
 			session['logged_in'] = True
@@ -139,37 +152,68 @@ def invite():
 @app.route('/sets/add', methods=['GET', 'POST'])
 def addsets():
 	error = None
-	form = forms.SetForm(request.form)
+	form = forms.SetForm(request.form, public=True)
 	if request.method == 'POST' and form.validate():
-		cur = g.db.execute('select * from sets where name = ?', (form.name.data,)).fetchone()
-		if cur is None:
+		if query_db('select * from sets where name = ?', [form.name.data], one=True) is None:
 			g.db.execute('insert into sets (creatorId, isPublic, categorytype, name) values (?, ?, ?, ?)',
 				[getCurrentUserId(), form.public.data, form.category.data, form.name.data])
 			g.db.commit()
-			flash('Your new set has been created')
-			cur = g.db.execute('select id from sets where name = ?', (form.name.data,)).fetchone[0]
-			redirect('url_for(addquestions)' + '/' + cur)
+			#flash('Your new set has been created')
+			newsetid = query_db('select id from sets where name = ?', [form.name.data], one=True)[0]
+			redirect(url_for('addquestions', set_id=str(newsetid)))
 		else:
 			error = "This set's name is already being used. Choose a different name."
 	return render_template('addset.html', form=form, error=error)
 
+@app.route('/questions/add', methods=['GET', 'POST'])
+def addquestions_no_set():
+	error = None
+	defaulted = False
+	userId = getCurrentUserId()
+	getallsets = query_db('select * from sets where creatorId = ?', [getCurrentUserId()])
+	form = forms.QuestionForm(request.form)
+	form.setbox.choices = [(q[0], q[4]) for q in getallsets]
+	if request.method == 'POST' and form.validate():
+		if request.form['submit'] == "Create new set":
+			return redirect(url_for('addsets'))
+		elif request.form['submit'] == "Create new question":
+			g.db.execute("""insert into questions (creatorId, question, answer, timeallowed, datecreated, ownerset) 
+				values (?, ?, ?, ?, ?, ?)""", [userId, form.question.data, form.answer.data, form.time.data, 
+				int(time.time()), form.setbox.data])
+			g.db.commit()
+			flash('Question created')
+			return redirect(url_for('addquestions', set_id=str(form.setbox.data)))
+		else:
+			print('Critical Error')
+	return render_template('addquestion.html', form=form, error=error, defaulted=defaulted)
+
 @app.route('/questions/add/<int:set_id>', methods=['GET', 'POST'])
 def addquestions(set_id):
-	query = g.db.execute('select id, name from sets where creatorId = ?', (getCurrentUserId,))
-	queryentries = [dict(id = row[0], name = row[1]) for row in query1.fetchall()]
-	default = None
-	for entries in queryentries:
-		if set_id == entries.id:
-			default = set_id
-			continue
-	if default is not None:
-		form = forms.QuestionForm(request.form, setbox=default)
+	error = None
+	defaulted = True
+	userId = getCurrentUserId()
+	getset = query_db('select * from sets where id = ?', [set_id], one=True)
+	getallsets = query_db('select * from sets where creatorId = ?', [userId])
+	form = forms.QuestionForm(request.form, setbox=getset[0])
+	form.setbox.choices = [(q[0], q[4]) for q in getallsets]
+	if getset is None:
+		error = "Set not found"
+	elif getset[1] != userId and getset[2] is False:
+		error = "Permission not granted"
 	else:
-		form = forms.QuestionForm(request.form)
-	form.setbox.choices = [(q.id, q.name) for q in queryentries]
-	if request.method == 'POST' and form.validate():
-		pass
-	return render_template('addquestion.html', form=form)
+		if request.method == "POST" and form.validate():
+			if request.form['submit'] == 'Create new set':
+				return redirect(url_for('addsets'))
+			elif request.form['submit'] == 'Create new question':
+				g.db.execute("""insert into questions (creatorId, question, answer, timeallowed, datecreated, ownerset) 
+					values (?, ?, ?, ?, ?, ?)""", [userId, form.question.data, form.answer.data, form.time.data, 
+					int(time.time()), form.setbox.data])
+				g.db.commit()
+				print('here')
+				return redirect(url_for('addquestions', set_id=str(form.setbox.data)))
+			else:
+				print('Critical error')
+	return render_template('addquestion.html', form=form, error=error, defaulted=defaulted, currentset=getset[0])
 
 if __name__ == "__main__":
 	app.run()
