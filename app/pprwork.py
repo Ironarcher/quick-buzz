@@ -1,9 +1,10 @@
 import os
 import time
 import sqlite3
-from flask import Flask, request, session, g, redirect, url_for, render_template, flash, abort
+from flask import Flask, request, session, g, redirect, url_for, render_template, flash, abort, jsonify
 from contextlib import closing
 import forms
+from functools import wraps
 
 #Create the application
 app = Flask(__name__)
@@ -64,6 +65,14 @@ def getUserId(username):
 
 def getCurrentUserId():
 	return getUserId(session['username'])
+
+def login_required(f):
+	@wraps(f)
+	def decorated_function(*args, **kwargs):
+		if session['logged_in'] is None:
+			return redirect(url_for('login'))
+		return f(*args, **kwargs)
+	return decorated_function
 
 @app.route('/')
 def show_entries():
@@ -131,16 +140,21 @@ def search():
 	for key in f.keys():
 		for value in f.getlist(key):
 			print key,":",value
-	if request.form['searchbox'] != None:
-		print('going through')
-		query1 = g.db.execute("select username, firstname, lastname from users where username like ?", ('%'+request.form['searchbox']+'%',))
-		userentries = [dict(username = row[0], firstname = row[1], lastname = row[2]) for row in query1.fetchall()]
-	elif request.form['action'] != None:
-		print('hello')
-		#return redirect(url_for('show_entries.html'))
+	if request.method == 'POST':
+		print('hi')
+		if request.form['submit'] == "Search":
+			print('going through')
+			query1 = g.db.execute("select username, firstname, lastname from users where username like ?", ('%'+request.form['searchbox']+'%',))
+			userentries = [dict(username = row[0], firstname = row[1], lastname = row[2]) for row in query1.fetchall()]
+		#elif request.form['submit'] == "Add Friend":
+		##	print('hello')
+		#	return redirect(url_for('show_entries.html'))
+		#else:
+		#	print('erroar')
 	print('end')
 	return render_template('search.html', userentries=userentries)
 
+@login_required
 @app.route('/invite', methods=['GET', 'POST'])
 def invite():
 	form = forms.InviteFriendForm(request.form)
@@ -149,6 +163,7 @@ def invite():
 		flash('Invitation sent!')
 	return render_template('invitefriends.html', form=form)
 
+@login_required
 @app.route('/sets/add', methods=['GET', 'POST'])
 def addsets():
 	error = None
@@ -165,6 +180,7 @@ def addsets():
 			error = "This set's name is already being used. Choose a different name."
 	return render_template('addset.html', form=form, error=error)
 
+@login_required
 @app.route('/questions/add', methods=['GET', 'POST'])
 def addquestions_no_set():
 	error = None
@@ -187,6 +203,7 @@ def addquestions_no_set():
 			print('Critical Error')
 	return render_template('addquestion.html', form=form, error=error, defaulted=defaulted)
 
+@login_required
 @app.route('/questions/add/<int:set_id>', methods=['GET', 'POST'])
 def addquestions(set_id):
 	error = None
@@ -194,9 +211,14 @@ def addquestions(set_id):
 	userId = getCurrentUserId()
 	getset = query_db('select * from sets where id = ?', [set_id], one=True)
 	getallsets = query_db('select * from sets where creatorId = ?', [userId])
-	form = forms.QuestionForm(request.form, setbox=getset[0])
+	if getset is None:
+		print('here')
+		return redirect(url_for('addquestions_no_set'))
+	else:
+		form = forms.QuestionForm(request.form, setbox=getset[0])
 	form.setbox.choices = [(q[0], q[4]) for q in getallsets]
 	if getset is None:
+		#Will never reach this because it will automaticaly redirect
 		error = "Set not found"
 	elif getset[1] != userId and getset[2] is False:
 		error = "Permission not granted"
