@@ -2,4 +2,13 @@
 {% block body %}
 	<script type=text/javascript src="{{url_for('static', filename='playscript.js') }}"></script>
 	<h2>Play</h2>
+	<br>
+	<p>Select a set to use</p>
+	<form action="">
+		<select id="set_select" name="sets">
+			{% for set in setlist%}
+				<option value={{ set[0] }}>{{ set[1] }}</option>
+			{% endfor %}
+		</select>
+	</form>
 {% endblock %}

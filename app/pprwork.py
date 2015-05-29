@@ -237,5 +237,47 @@ def addquestions(set_id):
 				print('Critical error')
 	return render_template('addquestion.html', form=form, error=error, defaulted=defaulted, currentset=getset[0])
 
+#Functions used for gameplay elements
+
+@app.route('/startlobby')
+def startlobby():
+	player1 = request.args.get('player1', getCurrentUserId(), type=int)
+	set_id = request.args.get('set_id', 1, type=int)
+	lobby_name = request.args.get('lobby_name', "Lobby", type=string)
+	print(player1)
+	if player1 == "":
+		player1 = getCurrentUserId()
+
+	if query_db('select id from lobbies where player1id = ?', [player1], one=True)[0] is None:
+		#Create lobby
+		g.db.execute("""insert into lobbies (name, player1in, player1id, setid, status)
+			values (?, ?, ?, ?, ?)""", [lobby_name, True, player1, set_id, "not_started"])
+		g.db.commit()
+		creatorId = query_db('select creatorId from sets where id = ?', [set_id])
+		creator = query_db('select username from users where id = ?', [creatorId])
+		category = query_db('select categorytype from sets where id = ?' [set_id])
+		lobby_id = query_db('select id from lobbies where player1id = ?', [player1])
+
+		return jsonify(creator=creator, category=category, lobby_id=lobby_id, error="none")
+	else:
+		return jsonify(creator="", category="", lobby_id=0,
+					   error="A user can only host one lobby at a time")
+
+@app.route('/buzzin')
+def buzzin():
+	pass
+
+@app.route('/usersubmit')
+def userSubmit():
+	pass
+
+@app.route('/nextquestion')
+def nextQuestion():
+	pass
+
+@app.route('/deletelobby')
+def deleteLobby():
+	pass
+
 if __name__ == "__main__":
 	app.run()

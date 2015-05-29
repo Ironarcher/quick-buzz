@@ -38,16 +38,16 @@ create table lobbies (
 	player8in boolean default false,
 	player9in boolean default false,
 	player10in boolean default false,
-	player1id integer default 0,
-	player2id integer default 0,
-	player3id integer default 0,
-	player4id integer default 0,
-	player5id integer default 0,
-	player6id integer default 0,
-	player7id integer default 0,
-	player8id integer default 0,
-	player9id integer default 0,
-	player10id integer default 0,
+	player1id integer references user(id),
+	player2id integer references user(id),
+	player3id integer references user(id),
+	player4id integer references user(id),
+	player5id integer references user(id),
+	player6id integer references user(id),
+	player7id integer references user(id),
+	player8id integer references user(id),
+	player9id integer references user(id),
+	player10id integer references user(id),
 	player1pts integer default 0,
 	player2pts integer default 0,
 	player3pts integer default 0,
@@ -59,6 +59,9 @@ create table lobbies (
 	player9pts integer default 0,
 	player10pts integer default 0,
 	setid integer references sets(id),
+	questionposition integer default 0,
+	unixtimer integer default 0,
+	status text not null
 );
 
 create table questions (
@@ -76,7 +79,7 @@ create table sets (
 	id integer primary key autoincrement,
 	creatorId integer references user(id),
 	isPublic boolean,
-	categorytype text,
+	categorytype tex,
 	name text not null
 );
 
